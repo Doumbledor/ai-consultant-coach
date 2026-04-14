@@ -12,7 +12,8 @@ CREATE TABLE sessions (
   recording_url TEXT,
   transcript TEXT,
   claude_summary JSONB,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 -- knowledge_base_entries: Q&A pairs for the HeyGen avatar
@@ -40,7 +41,7 @@ CREATE TABLE live_sessions (
 );
 
 -- Auto-update updated_at on knowledge_base_entries
-CREATE OR REPLACE FUNCTION update_updated_at()
+CREATE OR REPLACE FUNCTION set_updated_at()
 RETURNS TRIGGER AS $$
 BEGIN
   NEW.updated_at = NOW();
@@ -50,7 +51,11 @@ $$ LANGUAGE plpgsql;
 
 CREATE TRIGGER knowledge_base_entries_updated_at
   BEFORE UPDATE ON knowledge_base_entries
-  FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+  FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
+CREATE TRIGGER sessions_updated_at
+  BEFORE UPDATE ON sessions
+  FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
 -- Enable Realtime on live_sessions (needed for Plan 4)
 ALTER PUBLICATION supabase_realtime ADD TABLE live_sessions;
@@ -61,10 +66,10 @@ ALTER TABLE knowledge_base_entries ENABLE ROW LEVEL SECURITY;
 ALTER TABLE live_sessions ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "authenticated only" ON sessions
-  FOR ALL TO authenticated USING (true);
+  FOR ALL TO authenticated USING (true) WITH CHECK (true);
 
 CREATE POLICY "authenticated only" ON knowledge_base_entries
-  FOR ALL TO authenticated USING (true);
+  FOR ALL TO authenticated USING (true) WITH CHECK (true);
 
 CREATE POLICY "authenticated only" ON live_sessions
-  FOR ALL TO authenticated USING (true);
+  FOR ALL TO authenticated USING (true) WITH CHECK (true);
