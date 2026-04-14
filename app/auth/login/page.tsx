@@ -12,15 +12,22 @@ export default function LoginPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setLoading(true)
-    const supabase = createClient()
-    await supabase.auth.signInWithOtp({
-      email,
-      options: {
-        emailRedirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/auth/callback`,
-      },
-    })
-    setSent(true)
-    setLoading(false)
+    try {
+      const supabase = createClient()
+      const { error } = await supabase.auth.signInWithOtp({
+        email,
+        options: {
+          emailRedirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/auth/callback`,
+        },
+      })
+      if (error) throw error
+      setSent(true)
+    } catch (err) {
+      console.error('Magic link error:', err)
+      // Keep loading false so user can retry — form stays visible
+    } finally {
+      setLoading(false)
+    }
   }
 
   if (sent) {
