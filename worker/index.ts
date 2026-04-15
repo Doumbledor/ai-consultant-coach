@@ -1,3 +1,4 @@
+import crypto from 'crypto'
 import express from 'express'
 import { handleCalcomWebhook } from './webhooks/calcom'
 import { handleStripeWebhook } from './webhooks/stripe'
@@ -42,7 +43,6 @@ app.post('/webhooks/calcom', async (req, res) => {
 app.post('/webhooks/zoom', async (req, res) => {
   // Handle Zoom's one-time URL validation challenge (required when registering the webhook)
   if (req.body?.event === 'endpoint.url_validation') {
-    const crypto = await import('crypto')
     const hashForValidate = crypto
       .createHmac('sha256', process.env.ZOOM_WEBHOOK_SECRET_TOKEN ?? '')
       .update(req.body.payload.plainToken)
