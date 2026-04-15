@@ -43,6 +43,7 @@ describe('analyzeRecording', () => {
     )
     expect(parseVttTranscript).toHaveBeenCalled()
     expect(analyzeTranscript).toHaveBeenCalledWith('Avatar: Hello!\nCustomer: Hi!')
+    expect(supabase.from).toHaveBeenCalledWith('sessions')
     expect(supabase.update).toHaveBeenCalledWith(
       expect.objectContaining({
         transcript: expect.any(String),

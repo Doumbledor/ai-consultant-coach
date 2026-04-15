@@ -1,6 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk'
 
-interface ClaudeSummary {
+export interface ClaudeSummary {
   wentWell: string[]
   gaps: string[]
   kbSuggestions: Array<{ question: string; answer: string }>
