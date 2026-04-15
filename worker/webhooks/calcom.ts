@@ -4,7 +4,7 @@ interface CalcomPayload {
   uid: string
   title: string
   startTime: string
-  attendees: Array<{ email: string; name: string }>
+  attendees?: Array<{ email: string; name: string }>
   videoCallData?: { type: string; id: string | number }
   metadata?: { videoCallUrl?: string }
 }
@@ -16,7 +16,7 @@ function detectSessionType(title: string): 'session_1' | 'session_2' {
 }
 
 function extractZoomMeetingId(payload: CalcomPayload): string | null {
-  if (payload.videoCallData?.id) return String(payload.videoCallData.id)
+  if (payload.videoCallData?.id != null) return String(payload.videoCallData.id)
   const match = payload.metadata?.videoCallUrl?.match(/\/j\/(\d+)/)
   return match?.[1] ?? null
 }
@@ -26,14 +26,13 @@ export async function handleCalcomWebhook(
   payload: CalcomPayload
 ): Promise<void> {
   const { uid, title, startTime, attendees } = payload
-  const customerEmail = attendees[0]?.email
-
-  if (!customerEmail) {
-    console.warn('[calcom] No attendee email in payload, skipping')
-    return
-  }
 
   if (trigger === 'BOOKING_CREATED' || trigger === 'BOOKING_RESCHEDULED') {
+    const customerEmail = attendees?.[0]?.email
+    if (!customerEmail) {
+      console.warn('[calcom] No attendee email in payload, skipping upsert')
+      return
+    }
     const { error } = await supabase.from('sessions').upsert(
       {
         cal_booking_id: uid,

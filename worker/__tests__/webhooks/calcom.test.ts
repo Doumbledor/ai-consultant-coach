@@ -63,4 +63,19 @@ describe('handleCalcomWebhook', () => {
       expect.any(Object)
     )
   })
+
+  it('cancels session even when attendees array is missing', async () => {
+    const noAttendeesPayload = { ...mockBookingPayload, attendees: undefined }
+    await handleCalcomWebhook('BOOKING_CANCELLED', noAttendeesPayload)
+
+    expect(supabase.update).toHaveBeenCalledWith({ status: 'cancelled' })
+    expect(supabase.eq).toHaveBeenCalledWith('cal_booking_id', 'booking-abc123')
+  })
+
+  it('marks session completed on MEETING_ENDED', async () => {
+    await handleCalcomWebhook('MEETING_ENDED', mockBookingPayload)
+
+    expect(supabase.update).toHaveBeenCalledWith({ status: 'completed' })
+    expect(supabase.eq).toHaveBeenCalledWith('cal_booking_id', 'booking-abc123')
+  })
 })
