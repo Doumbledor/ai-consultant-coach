@@ -25,7 +25,7 @@ export async function syncHeygenKb(): Promise<void> {
     try {
       const heygenEntryId = await pushKbEntry(entry.question, entry.answer)
 
-      await supabase
+      const { error: updateError } = await supabase
         .from('knowledge_base_entries')
         .update({
           sync_status: 'synced',
@@ -34,7 +34,11 @@ export async function syncHeygenKb(): Promise<void> {
         })
         .eq('id', entry.id)
 
-      console.log(`[sync-heygen] Synced entry: ${entry.id}`)
+      if (updateError) {
+        console.error(`[sync-heygen] Failed to mark entry ${entry.id} as synced:`, updateError.message)
+      } else {
+        console.log(`[sync-heygen] Synced entry: ${entry.id}`)
+      }
     } catch (err) {
       console.error(`[sync-heygen] Failed to sync entry ${entry.id}:`, err)
     }

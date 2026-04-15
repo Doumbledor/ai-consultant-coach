@@ -24,6 +24,7 @@ export async function pushKbEntry(question: string, answer: string): Promise<str
   }
 
   const data = await response.json() as { data?: { id?: string }; id?: string }
-  const entryId = data.data?.id ?? data.id ?? `heygen-${Date.now()}`
+  const entryId = data.data?.id ?? data.id
+  if (!entryId) throw new Error('HeyGen API returned no entry ID')
   return entryId
 }
