@@ -35,7 +35,7 @@ export async function handleStripeWebhook(
     .eq('customer_email', customerEmail)
     .eq('status', 'upcoming')
     .is('stripe_payment_id', null)
-    .order('created_at', { ascending: false })
+    .order('scheduled_at', { ascending: true })
     .limit(1)
 
   if (selectError) {

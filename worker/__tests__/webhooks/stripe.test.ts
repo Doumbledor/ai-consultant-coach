@@ -53,6 +53,7 @@ describe('handleStripeWebhook', () => {
     expect(supabase.update).toHaveBeenCalledWith({
       stripe_payment_id: 'pi_test_456',
     })
+    expect(supabase.eq).toHaveBeenCalledWith('id', 'session-id')
   })
 
   it('ignores unrelated event types', async () => {
