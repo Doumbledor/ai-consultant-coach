@@ -1,8 +1,7 @@
 import { handleZoomWebhook } from '../../webhooks/zoom'
 import { supabase as supabaseClient } from '../../lib/supabase'
+import { analyzeRecording } from '../../jobs/analyze-recording'
 
-// Cast to any so we can assert on the mock's fluent query builder methods
-// (SupabaseClient type doesn't expose .update etc. at the top level)
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const supabase = supabaseClient as any
 
@@ -19,7 +18,6 @@ jest.mock('../../lib/supabase', () => ({
   },
 }))
 
-// Prevent the async fire-and-forget analysis from running in tests
 jest.mock('../../jobs/analyze-recording', () => ({
   analyzeRecording: jest.fn().mockResolvedValue(undefined),
 }))
@@ -52,8 +50,11 @@ const mockZoomPayload = {
 describe('handleZoomWebhook', () => {
   beforeEach(() => jest.clearAllMocks())
 
-  it('stores recording_url and triggers analysis on recording.completed', async () => {
+  it('stores recording_url, marks session completed, and triggers analysis', async () => {
     await handleZoomWebhook(mockZoomPayload)
+
+    // Flush the setImmediate queue so analyzeRecording has been called
+    await new Promise<void>(resolve => setImmediate(resolve))
 
     expect(supabase.update).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -61,11 +62,16 @@ describe('handleZoomWebhook', () => {
         status: 'completed',
       })
     )
-    expect(supabase.eq).toHaveBeenCalledWith('zoom_meeting_id', '87654321')
+    expect(analyzeRecording).toHaveBeenCalledWith(
+      'session-id',
+      'https://zoom.us/rec/download/transcript.vtt',
+      'test-download-token'
+    )
   })
 
   it('ignores non-recording events', async () => {
     await handleZoomWebhook({ event: 'meeting.started', payload: {} })
     expect(supabase.update).not.toHaveBeenCalled()
+    expect(analyzeRecording).not.toHaveBeenCalled()
   })
 })
