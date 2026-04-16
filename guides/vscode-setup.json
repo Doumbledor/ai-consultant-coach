@@ -1,0 +1,19 @@
+{
+  "title": "Set Up VS Code for AI Development",
+  "trigger_phrases": [
+    "visual studio code",
+    "vs code",
+    "vscode",
+    "code editor",
+    "install vscode",
+    "set up my editor"
+  ],
+  "steps": [
+    "Download VS Code from code.visualstudio.com — it's free",
+    "Install it by running the downloaded file and following the prompts",
+    "Open VS Code — you'll see a welcome screen",
+    "Install the Claude Code extension: click the Extensions icon (left sidebar), search 'Claude Code', click Install",
+    "Open a project folder: File → Open Folder → select your project",
+    "You're ready — press Ctrl+` to open the terminal and run: claude"
+  ]
+}

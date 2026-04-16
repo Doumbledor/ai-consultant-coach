@@ -1,0 +1,19 @@
+{
+  "title": "Start a New Project with Claude Code",
+  "trigger_phrases": [
+    "start a project",
+    "new project",
+    "create a project",
+    "begin a project",
+    "kick off a project",
+    "how do i start"
+  ],
+  "steps": [
+    "Create a new folder for your project anywhere on your computer",
+    "Open VS Code and open that folder (File → Open Folder)",
+    "Open the VS Code terminal: press Ctrl+` (backtick)",
+    "Type: claude and press Enter — Claude Code will launch in your terminal",
+    "Describe what you want to build — Claude will start writing code for you",
+    "Review changes with: git diff — approve with 'yes' or refine your request"
+  ]
+}
