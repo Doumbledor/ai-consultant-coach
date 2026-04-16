@@ -1,4 +1,18 @@
 import { supabase } from '../lib/supabase'
+import { Resend } from 'resend'
+import { randomUUID } from 'crypto'
+
+let _resend: Resend | null = null
+function getResend(): Resend {
+  if (!_resend) _resend = new Resend(process.env.RESEND_API_KEY!)
+  return _resend
+}
+
+type CalcomTrigger =
+  | 'BOOKING_CREATED'
+  | 'BOOKING_RESCHEDULED'
+  | 'BOOKING_CANCELLED'
+  | 'MEETING_ENDED'
 
 interface CalcomPayload {
   uid: string
@@ -16,9 +30,45 @@ function detectSessionType(title: string): 'session_1' | 'session_2' {
 }
 
 function extractZoomMeetingId(payload: CalcomPayload): string | null {
-  if (payload.videoCallData?.id != null) return String(payload.videoCallData.id)
+  if (payload.videoCallData?.id) return String(payload.videoCallData.id)
   const match = payload.metadata?.videoCallUrl?.match(/\/j\/(\d+)/)
   return match?.[1] ?? null
+}
+
+async function sendSessionEmail(
+  customerEmail: string,
+  customerName: string,
+  sessionToken: string,
+  scheduledAt: string
+) {
+  const appUrl = process.env.APP_URL ?? 'https://your-domain.com'
+  const sessionUrl = `${appUrl}/session/${sessionToken}`
+  const formattedDate = new Date(scheduledAt).toLocaleString('en-US', {
+    weekday: 'long',
+    month: 'long',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+    timeZoneName: 'short',
+  })
+
+  await getResend().emails.send({
+    from: process.env.RESEND_FROM_EMAIL ?? 'noreply@your-domain.com',
+    to: customerEmail,
+    subject: 'Your AI Consultation is Ready',
+    html: `
+      <div style="font-family:sans-serif;max-width:520px;margin:0 auto;padding:24px;">
+        <h2 style="color:#1e293b;">Hi ${customerName},</h2>
+        <p style="color:#475569;">Your AI consultation is scheduled for <strong>${formattedDate}</strong>.</p>
+        <p style="color:#475569;">Click the button below at your scheduled time to join:</p>
+        <a href="${sessionUrl}" style="display:inline-block;background:#6366f1;color:white;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600;margin:16px 0;">
+          Join Your Consultation
+        </a>
+        <p style="color:#94a3b8;font-size:13px;">Or copy this link: ${sessionUrl}</p>
+        <p style="color:#94a3b8;font-size:12px;margin-top:24px;">If you have any issues, reply to this email.</p>
+      </div>
+    `,
+  })
 }
 
 export async function handleCalcomWebhook(
@@ -29,10 +79,15 @@ export async function handleCalcomWebhook(
 
   if (trigger === 'BOOKING_CREATED' || trigger === 'BOOKING_RESCHEDULED') {
     const customerEmail = attendees?.[0]?.email
+    const customerName = attendees?.[0]?.name ?? 'there'
+
     if (!customerEmail) {
-      console.warn('[calcom] No attendee email in payload, skipping upsert')
+      console.warn('[calcom] No attendee email in payload, skipping')
       return
     }
+
+    const sessionToken = randomUUID()
+
     const { error } = await supabase.from('sessions').upsert(
       {
         cal_booking_id: uid,
@@ -41,10 +96,20 @@ export async function handleCalcomWebhook(
         session_type: detectSessionType(title),
         status: 'upcoming',
         zoom_meeting_id: extractZoomMeetingId(payload),
+        session_token: sessionToken,
       },
       { onConflict: 'cal_booking_id' }
     )
-    if (error) console.error('[calcom] upsert error:', error.message)
+
+    if (error) {
+      console.error('[calcom] upsert error:', error.message)
+      return
+    }
+
+    if (trigger === 'BOOKING_CREATED' && process.env.RESEND_API_KEY) {
+      await sendSessionEmail(customerEmail, customerName, sessionToken, startTime)
+        .catch((err) => console.error('[calcom] Email send failed:', err))
+    }
     return
   }
 
