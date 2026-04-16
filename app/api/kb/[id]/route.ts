@@ -9,10 +9,14 @@ export async function PATCH(
   const body = await request.json()
   const { question, answer, session_tag, sync_status } = body
 
+  const updates = Object.fromEntries(
+    Object.entries({ question, answer, session_tag, sync_status }).filter(([, v]) => v !== undefined)
+  )
+
   const supabase = await createClient()
   const { data, error } = await supabase
     .from('knowledge_base_entries')
-    .update({ question, answer, session_tag, sync_status, updated_at: new Date().toISOString() })
+    .update({ ...updates, updated_at: new Date().toISOString() })
     .eq('id', id)
     .select()
     .single()

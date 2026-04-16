@@ -1,7 +1,7 @@
 'use client'
 import { useState } from 'react'
 import { Plus, Search, RefreshCw } from 'lucide-react'
-import type { KnowledgeBaseEntry, SessionTag } from '@/lib/types'
+import type { KnowledgeBaseEntry, SessionTag, SessionTagFilter } from '@/lib/types'
 
 interface Props {
   initialEntries: KnowledgeBaseEntry[]
@@ -25,7 +25,7 @@ export function KnowledgeBaseEditor({ initialEntries, syncedCount, pendingCount,
   const [entries, setEntries] = useState<KnowledgeBaseEntry[]>(initialEntries)
   const [selectedId, setSelectedId] = useState<string | null>(entries[0]?.id ?? null)
   const [search, setSearch] = useState('')
-  const [tagFilter, setTagFilter] = useState<'all' | SessionTag>('all')
+  const [tagFilter, setTagFilter] = useState<SessionTagFilter>('all')
   const [saving, setSaving] = useState(false)
   const [syncingAll, setSyncingAll] = useState(false)
 
@@ -145,7 +145,7 @@ export function KnowledgeBaseEditor({ initialEntries, syncedCount, pendingCount,
               </button>
             </div>
             <div className="flex gap-1">
-              {(['all', 'session_1', 'session_2'] as const).map((tag) => (
+              {(['all', 'session_1', 'session_2'] as SessionTagFilter[]).map((tag) => (
                 <button
                   key={tag}
                   onClick={() => setTagFilter(tag)}

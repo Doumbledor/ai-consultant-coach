@@ -1,8 +1,8 @@
 import { createClient } from '@/lib/supabase/server'
-import type { KnowledgeBaseEntry, SessionTag, SyncStatus } from '@/lib/types'
+import type { KnowledgeBaseEntry, SessionTag, SessionTagFilter, SyncStatus } from '@/lib/types'
 
 export interface KbFilters {
-  sessionTag?: SessionTag
+  sessionTag?: SessionTagFilter
   search?: string
 }
 

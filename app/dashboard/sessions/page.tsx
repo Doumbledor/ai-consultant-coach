@@ -1,6 +1,7 @@
 import { getAllSessions } from '@/lib/data/sessions'
 import { SessionSearch } from '@/components/session-search'
 import Link from 'next/link'
+import { Suspense } from 'react'
 import type { SessionStatus, SessionType } from '@/lib/types'
 
 interface Props {
@@ -91,7 +92,9 @@ export default async function SessionsPage({ searchParams }: Props) {
           })}
         </div>
 
-        <SessionSearch />
+        <Suspense fallback={<div className="h-9 w-48 animate-pulse rounded-lg bg-slate-700" />}>
+          <SessionSearch />
+        </Suspense>
       </div>
 
       <div className="rounded-xl border border-slate-700 bg-slate-800 overflow-hidden">

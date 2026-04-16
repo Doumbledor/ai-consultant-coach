@@ -1,7 +1,8 @@
 export type SessionType = 'session_1' | 'session_2'
 export type SessionStatus = 'upcoming' | 'live' | 'completed' | 'cancelled'
 export type SyncStatus = 'draft' | 'pending' | 'synced'
-export type SessionTag = 'session_1' | 'session_2' | 'all'
+export type SessionTag = 'session_1' | 'session_2'
+export type SessionTagFilter = SessionTag | 'all'
 
 export interface ClaudeSummary {
   wentWell: string[]
