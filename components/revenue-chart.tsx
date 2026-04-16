@@ -30,7 +30,7 @@ export function RevenueChart({ data }: RevenueChartProps) {
           />
           <Tooltip
             contentStyle={{ background: '#1e293b', border: 'none', borderRadius: 8 }}
-            formatter={(v: number) => [`$${v}`, 'Revenue']}
+            formatter={(v) => [`$${v}`, 'Revenue']}
           />
           <Bar dataKey="revenue" fill="#6366f1" radius={[4, 4, 0, 0]} />
         </BarChart>
