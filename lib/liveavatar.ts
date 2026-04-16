@@ -8,16 +8,16 @@ export interface LiveAvatarSession {
 
 export async function createLiveAvatarSession(
   sessionId: string,
-  appBaseUrl: string
+  _appBaseUrl: string
 ): Promise<LiveAvatarSession> {
   const apiKey = process.env.LIVEAVATAR_API_KEY
   const avatarId = process.env.LIVEAVATAR_AVATAR_ID
+  const contextId = process.env.LIVEAVATAR_CONTEXT_ID
   if (!apiKey || !avatarId) throw new Error('Missing LIVEAVATAR_API_KEY or LIVEAVATAR_AVATAR_ID')
+  if (!contextId) throw new Error('Missing LIVEAVATAR_CONTEXT_ID')
 
-  // The LLM proxy URL includes our session ID so the proxy knows which session it's serving
-  const llmProxyUrl = `${appBaseUrl}/api/session/llm?session_id=${sessionId}`
-
-  const response = await fetch(`${LIVEAVATAR_API_BASE}/v1/sessions/token`, {
+  // Use /v2/embeddings which returns an embed.liveavatar.com URL safe for iframing
+  const response = await fetch(`${LIVEAVATAR_API_BASE}/v2/embeddings`, {
     method: 'POST',
     headers: {
       'X-Api-Key': apiKey,
@@ -25,11 +25,8 @@ export async function createLiveAvatarSession(
     },
     body: JSON.stringify({
       avatar_id: avatarId,
-      llm: {
-        type: 'custom',
-        url: llmProxyUrl,
-        secret: process.env.LIVEAVATAR_PROXY_SECRET,
-      },
+      context_id: contextId,
+      default_language: 'en',
     }),
   })
 
@@ -39,18 +36,16 @@ export async function createLiveAvatarSession(
   }
 
   const data = await response.json() as {
-    session_id: string
-    session_token: string
-    embed_url?: string
+    code: number
+    data: { url: string; script: string }
+    message: string
   }
 
-  // Build embed URL from session token if not returned directly
-  const embedUrl = data.embed_url ??
-    `https://app.liveavatar.com/embed?session_token=${data.session_token}`
+  console.log('[liveavatar] embed response:', JSON.stringify(data))
 
   return {
-    session_id: data.session_id,
-    session_token: data.session_token,
-    embed_url: embedUrl,
+    session_id: sessionId,
+    session_token: '',
+    embed_url: data.data.url,
   }
 }

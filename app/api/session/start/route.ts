@@ -22,21 +22,17 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Invalid session token' }, { status: 404 })
   }
 
-  // Return existing LiveAvatar session if already created (idempotent)
-  if (session.liveavatar_session_id) {
-    const embedUrl = `https://app.liveavatar.com/embed?session_id=${session.liveavatar_session_id}`
-    return NextResponse.json({ embed_url: embedUrl, session_id: session.id })
-  }
-
-  // Lazily create the LiveAvatar session
+  // Always get a fresh embed URL — /v2/embeddings URLs have a short TTL
   const appBaseUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'
   const liveAvatarSession = await createLiveAvatarSession(session.id, appBaseUrl)
 
-  // Store the LiveAvatar session ID
-  await supabase
-    .from('sessions')
-    .update({ liveavatar_session_id: liveAvatarSession.session_id })
-    .eq('id', session.id)
+  // Mark session as initialized (first time only)
+  if (!session.liveavatar_session_id) {
+    await supabase
+      .from('sessions')
+      .update({ liveavatar_session_id: 'initialized' })
+      .eq('id', session.id)
+  }
 
   return NextResponse.json({
     embed_url: liveAvatarSession.embed_url,

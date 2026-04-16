@@ -15,6 +15,17 @@ export default function SessionPage({ params }: Props) {
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      // Only log messages from the LiveAvatar embed domain
+      if (event.origin.includes('liveavatar.com') || event.origin.includes('heygen.com')) {
+        console.log('[liveavatar postMessage]', event.origin, JSON.stringify(event.data))
+      }
+    }
+    window.addEventListener('message', handleMessage)
+    return () => window.removeEventListener('message', handleMessage)
+  }, [])
+
+  useEffect(() => {
     fetch('/api/session/start', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
