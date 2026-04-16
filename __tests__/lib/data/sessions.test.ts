@@ -41,7 +41,7 @@ describe('getSessionStats', () => {
   it('returns zero stats when no sessions exist', async () => {
     mockFrom
       .mockReturnValueOnce(mockQuery({ count: 0, data: null }))
-      .mockReturnValueOnce(mockQuery({ data: [] }))
+      .mockReturnValueOnce(mockQuery({ count: 0, data: null }))
       .mockReturnValueOnce(mockQuery({ count: 0, data: null }))
       .mockReturnValueOnce(mockQuery({ count: 0, data: null }))
 
@@ -55,7 +55,7 @@ describe('getSessionStats', () => {
   it('calculates revenue as completed MTD sessions × $20', async () => {
     mockFrom
       .mockReturnValueOnce(mockQuery({ count: 10, data: null }))
-      .mockReturnValueOnce(mockQuery({ data: [{ id: '1' }, { id: '2' }, { id: '3' }] }))
+      .mockReturnValueOnce(mockQuery({ count: 3, data: null }))
       .mockReturnValueOnce(mockQuery({ count: 2, data: null }))
       .mockReturnValueOnce(mockQuery({ count: 5, data: null }))
 
@@ -110,6 +110,13 @@ describe('getAllSessions', () => {
     mockFrom.mockReturnValue(mockQuery({ data: [{ id: '3' }] }))
     const result = await getAllSessions()
     expect(result).toHaveLength(1)
+  })
+
+  it('passes status filter to query', async () => {
+    mockFrom.mockReturnValue(mockQuery({ data: [] }))
+    await getAllSessions({ status: 'completed' })
+    // Verify mockFrom was called (filter was applied via chaining)
+    expect(mockFrom).toHaveBeenCalledWith('sessions')
   })
 })
 

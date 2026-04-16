@@ -43,6 +43,12 @@ describe('getKbEntries', () => {
     const result = await getKbEntries()
     expect(result).toEqual([entry])
   })
+
+  it('calls from knowledge_base_entries', async () => {
+    mockFrom.mockReturnValue(mockQuery({ data: [] }))
+    await getKbEntries({ sessionTag: 'session_1' })
+    expect(mockFrom).toHaveBeenCalledWith('knowledge_base_entries')
+  })
 })
 
 describe('createKbEntry', () => {

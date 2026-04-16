@@ -21,7 +21,8 @@ export async function getKbEntries(filters: KbFilters = {}): Promise<KnowledgeBa
   }
   if (filters.search) query = query.ilike('question', `%${filters.search}%`)
 
-  const { data } = await query.order('created_at', { ascending: false })
+  const { data, error } = await query.order('created_at', { ascending: false })
+  if (error) throw error
   return (data ?? []) as KnowledgeBaseEntry[]
 }
 
@@ -69,7 +70,8 @@ export async function deleteKbEntry(id: string): Promise<void> {
 
 export async function getSyncStats(): Promise<SyncStats> {
   const supabase = await createClient()
-  const { data } = await supabase.from('knowledge_base_entries').select('sync_status')
+  const { data, error } = await supabase.from('knowledge_base_entries').select('sync_status')
+  if (error) throw error
   const entries = (data ?? []) as { sync_status: string }[]
   return {
     total: entries.length,

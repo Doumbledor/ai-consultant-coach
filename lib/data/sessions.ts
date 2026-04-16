@@ -34,7 +34,7 @@ export async function getSessionStats(): Promise<SessionStats> {
       .eq('status', 'completed'),
     supabase
       .from('sessions')
-      .select('id')
+      .select('id', { count: 'exact', head: true })
       .eq('status', 'completed')
       .gte('scheduled_at', monthStart),
     supabase
@@ -50,9 +50,14 @@ export async function getSessionStats(): Promise<SessionStats> {
       .gte('scheduled_at', monthStart),
   ])
 
+  if (totalResult.error) throw totalResult.error
+  if (mtdResult.error) throw mtdResult.error
+  if (upcomingResult.error) throw upcomingResult.error
+  if (thisMonthResult.error) throw thisMonthResult.error
+
   return {
     totalSessions: totalResult.count ?? 0,
-    revenueMtd: (mtdResult.data?.length ?? 0) * SESSION_PRICE,
+    revenueMtd: (mtdResult.count ?? 0) * SESSION_PRICE,
     upcomingCount: upcomingResult.count ?? 0,
     thisMonthCount: thisMonthResult.count ?? 0,
   }
@@ -64,12 +69,13 @@ export async function getDailyRevenue(days: number): Promise<DailyRevenue[]> {
   since.setDate(since.getDate() - days + 1)
   since.setHours(0, 0, 0, 0)
 
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from('sessions')
     .select('scheduled_at')
     .eq('status', 'completed')
     .gte('scheduled_at', since.toISOString())
     .order('scheduled_at', { ascending: true })
+  if (error) throw error
 
   const buckets: Record<string, number> = {}
   for (let i = 0; i < days; i++) {
@@ -88,24 +94,26 @@ export async function getDailyRevenue(days: number): Promise<DailyRevenue[]> {
 
 export async function getUpcomingSessions(limit: number): Promise<Session[]> {
   const supabase = await createClient()
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from('sessions')
     .select('*')
     .eq('status', 'upcoming')
     .gte('scheduled_at', new Date().toISOString())
     .order('scheduled_at', { ascending: true })
     .limit(limit)
+  if (error) throw error
   return (data ?? []) as Session[]
 }
 
 export async function getRecentSessions(limit: number): Promise<Session[]> {
   const supabase = await createClient()
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from('sessions')
     .select('*')
     .eq('status', 'completed')
     .order('scheduled_at', { ascending: false })
     .limit(limit)
+  if (error) throw error
   return (data ?? []) as Session[]
 }
 
@@ -117,12 +125,14 @@ export async function getAllSessions(filters: SessionFilters = {}): Promise<Sess
   if (filters.sessionType) query = query.eq('session_type', filters.sessionType)
   if (filters.search) query = query.ilike('customer_email', `%${filters.search}%`)
 
-  const { data } = await query.order('scheduled_at', { ascending: false })
+  const { data, error } = await query.order('scheduled_at', { ascending: false })
+  if (error) throw error
   return (data ?? []) as Session[]
 }
 
 export async function getSessionById(id: string): Promise<Session | null> {
   const supabase = await createClient()
-  const { data } = await supabase.from('sessions').select('*').eq('id', id).single()
+  const { data, error } = await supabase.from('sessions').select('*').eq('id', id).maybeSingle()
+  if (error) throw error
   return data as Session | null
 }
