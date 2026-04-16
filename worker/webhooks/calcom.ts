@@ -8,12 +8,6 @@ function getResend(): Resend {
   return _resend
 }
 
-type CalcomTrigger =
-  | 'BOOKING_CREATED'
-  | 'BOOKING_RESCHEDULED'
-  | 'BOOKING_CANCELLED'
-  | 'MEETING_ENDED'
-
 interface CalcomPayload {
   uid: string
   title: string
@@ -30,7 +24,7 @@ function detectSessionType(title: string): 'session_1' | 'session_2' {
 }
 
 function extractZoomMeetingId(payload: CalcomPayload): string | null {
-  if (payload.videoCallData?.id) return String(payload.videoCallData.id)
+  if (payload.videoCallData?.id != null) return String(payload.videoCallData.id)
   const match = payload.metadata?.videoCallUrl?.match(/\/j\/(\d+)/)
   return match?.[1] ?? null
 }
@@ -86,7 +80,14 @@ export async function handleCalcomWebhook(
       return
     }
 
-    const sessionToken = randomUUID()
+    // Fetch existing session token to preserve it on reschedule
+    const { data: existing } = await supabase
+      .from('sessions')
+      .select('session_token')
+      .eq('cal_booking_id', uid)
+      .single()
+
+    const sessionToken = existing?.session_token ?? randomUUID()
 
     const { error } = await supabase.from('sessions').upsert(
       {

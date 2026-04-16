@@ -1,6 +1,11 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 import { NextResponse } from 'next/server'
 
+// Note: This endpoint is intentionally unauthenticated at the request level.
+// The session_id is the internal Supabase UUID (not the customer-facing token),
+// so it is not exposed in URLs. The trust assumption is that only the customer's
+// browser has the session_id (returned by /api/session/start). TODO: Add
+// short-lived upload token if this becomes a security concern.
 export async function POST(request: Request) {
   const { session_id, image_base64 } = await request.json() as {
     session_id: string

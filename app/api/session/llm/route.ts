@@ -46,7 +46,9 @@ async function broadcastDisplay(sessionId: string, display: DisplayContent) {
     },
     body: JSON.stringify({
       messages: [{
-        topic: `realtime:session:display:${sessionId}`,
+        // Topic must match the channel name used by the JS client's supabase.channel() call,
+        // without the "realtime:" prefix — the HTTP broadcast API adds that internally.
+        topic: `session:display:${sessionId}`,
         event: 'display',
         payload: display,
       }],
