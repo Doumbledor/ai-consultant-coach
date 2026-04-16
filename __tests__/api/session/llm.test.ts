@@ -3,10 +3,6 @@
  */
 
 // Mock Supabase admin client
-const mockSelect = jest.fn()
-const mockUpdate = jest.fn()
-const mockEq = jest.fn()
-const mockSingle = jest.fn()
 const mockFrom = jest.fn()
 
 jest.mock('@/lib/supabase/admin', () => ({
@@ -41,12 +37,24 @@ beforeEach(() => {
   process.env.SUPABASE_SERVICE_ROLE_KEY = 'test-service-key'
   process.env.ANTHROPIC_API_KEY = 'test-anthropic-key'
 
-  // Default: no screenshot, no error
-  mockFrom.mockReturnValue({
+  // KB entries query: .from('knowledge_base_entries').select().eq().limit()
+  const kbChain = {
     select: jest.fn().mockReturnThis(),
     eq: jest.fn().mockReturnThis(),
     limit: jest.fn().mockResolvedValue({ data: [], error: null }),
+  }
+
+  // Screenshot query: .from('sessions').select().eq().single()
+  const sessionChain = {
+    select: jest.fn().mockReturnThis(),
+    eq: jest.fn().mockReturnThis(),
     single: jest.fn().mockResolvedValue({ data: { latest_screenshot: null }, error: null }),
+  }
+
+  mockFrom.mockImplementation((table: string) => {
+    if (table === 'knowledge_base_entries') return kbChain
+    if (table === 'sessions') return sessionChain
+    return sessionChain
   })
 
   ;(global.fetch as jest.Mock).mockResolvedValue({ ok: true, json: jest.fn().mockResolvedValue({}) })
@@ -126,5 +134,35 @@ describe('POST /api/session/llm', () => {
     const body = await res.json()
     // Falls back to returning the raw text as speak
     expect(body.choices[0].message.content).toBeTruthy()
+  })
+
+  it('injects screenshot as vision content on the last user message', async () => {
+    // Override sessions mock to return a screenshot
+    mockFrom.mockImplementation((table: string) => {
+      if (table === 'knowledge_base_entries') {
+        return {
+          select: jest.fn().mockReturnThis(),
+          eq: jest.fn().mockReturnThis(),
+          limit: jest.fn().mockResolvedValue({ data: [], error: null }),
+        }
+      }
+      return {
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        single: jest.fn().mockResolvedValue({ data: { latest_screenshot: 'base64data' }, error: null }),
+      }
+    })
+    mockCreate.mockResolvedValue({
+      content: [{ type: 'text', text: '{"speak":"I can see your screen","display":{"type":"none","content":{}}}' }],
+    })
+
+    const req = makeRequest([{ role: 'user', content: 'look at this' }])
+    await POST(req)
+
+    const callArgs = mockCreate.mock.calls[0][0]
+    const lastMsg = callArgs.messages.at(-1)
+    expect(Array.isArray(lastMsg.content)).toBe(true)
+    expect(lastMsg.content[0].type).toBe('image')
+    expect(lastMsg.content[0].source.data).toBe('base64data')
   })
 })

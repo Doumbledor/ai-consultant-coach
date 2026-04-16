@@ -105,34 +105,37 @@ export async function POST(request: Request) {
     .replace('{GUIDE_TITLES}', guideTitles.length ? guideTitles.join(', ') : '(none)')
 
   // Build messages for Claude
+  const lastUserMessage = body.messages.filter((m) => m.role === 'user').at(-1) ?? null
+
   const userMessages: Anthropic.MessageParam[] = body.messages
     .filter((m) => m.role === 'user' || m.role === 'assistant')
     .map((m) => {
-      if (m.role === 'user' && screenshotBase64) {
-        // Attach screenshot as vision to the last user message only
-        const isLast = m === body.messages.filter((x) => x.role === 'user').at(-1)
-        if (isLast) {
-          return {
-            role: 'user' as const,
-            content: [
-              { type: 'image' as const, source: { type: 'base64' as const, media_type: 'image/png' as const, data: screenshotBase64 } },
-              { type: 'text' as const, text: m.content },
-            ],
-          }
+      if (m.role === 'user' && screenshotBase64 && m === lastUserMessage) {
+        return {
+          role: 'user' as const,
+          content: [
+            { type: 'image' as const, source: { type: 'base64' as const, media_type: 'image/png' as const, data: screenshotBase64 } },
+            { type: 'text' as const, text: m.content },
+          ],
         }
       }
       return { role: m.role as 'user' | 'assistant', content: m.content }
     })
 
   const anthropic = getAnthropicClient()
-  const message = await anthropic.messages.create({
-    model: 'claude-sonnet-4-6',
-    max_tokens: 1024,
-    system: systemPrompt,
-    messages: userMessages,
-  })
-
-  const rawText = message.content[0].type === 'text' ? message.content[0].text : ''
+  let rawText = ''
+  try {
+    const message = await anthropic.messages.create({
+      model: 'claude-sonnet-4-6',
+      max_tokens: 1024,
+      system: systemPrompt,
+      messages: userMessages,
+    })
+    rawText = message.content[0].type === 'text' ? message.content[0].text : ''
+  } catch (err) {
+    console.error('[llm-proxy] Claude API error:', err)
+    return NextResponse.json({ error: 'LLM unavailable' }, { status: 503 })
+  }
   const { speak, display } = parseClaudeResponse(rawText)
 
   // Broadcast display update to the customer's panel
