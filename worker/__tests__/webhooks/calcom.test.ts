@@ -6,18 +6,27 @@ import { supabase as supabaseClient } from '../../lib/supabase'
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const supabase = supabaseClient as any
 
-jest.mock('../../lib/supabase', () => ({
-  supabase: {
+// Build a fluent mock where every method returns `this` so arbitrary chains work.
+// `.eq` is also thenable (resolves { error: null }) so `await .update().eq()` works.
+// `.single` resolves { data: null } so the "fetch existing token" path gets null
+// and the handler generates a fresh UUID as expected.
+jest.mock('../../lib/supabase', () => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const mock: any = {
     from: jest.fn().mockReturnThis(),
     upsert: jest.fn().mockResolvedValue({ error: null }),
-    // update returns `this` so the chain `.update(...).eq(...)` works;
-    // eq then resolves with the final value
     update: jest.fn().mockReturnThis(),
-    eq: jest.fn().mockResolvedValue({ error: null }),
     select: jest.fn().mockReturnThis(),
-    single: jest.fn().mockResolvedValue({ data: { id: 'session-id' }, error: null }),
-  },
-}))
+    single: jest.fn().mockResolvedValue({ data: null, error: null }),
+  }
+  // Make .eq() return an object that chains further AND is directly awaitable
+  mock.eq = jest.fn().mockImplementation(() =>
+    Object.assign(Object.create(mock), {
+      then: (resolve: (v: unknown) => void) => Promise.resolve({ error: null }).then(resolve),
+    })
+  )
+  return { supabase: mock }
+})
 
 const mockBookingPayload = {
   uid: 'booking-abc123',

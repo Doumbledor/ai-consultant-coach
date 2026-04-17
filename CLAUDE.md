@@ -1,7 +1,7 @@
 # AI Consultation Machine
 
 ## Overview
-A fully automated AI teaching business where an AI avatar (HeyGen LiveAvatar) conducts paid 30-minute video consultations on behalf of the owner. Leads come from Facebook AI/Vibe Coding groups, ManyChat handles the comment-to-DM automation, Cal.com manages booking + Stripe payment, and HeyGen delivers the consultation via Zoom. Zero manual intervention after setup.
+A fully automated AI teaching business where an AI avatar (LiveAvatar/HeyGen) conducts paid 30-minute video consultations on behalf of the owner. Leads come from Facebook AI/Vibe Coding groups, ManyChat handles the comment-to-DM automation, Cal.com manages booking + Stripe payment, and LiveAvatar delivers the consultation via a custom session page. Zero manual intervention after setup.
 
 ## Tech Stack
 | Component | Tool | Cost |
@@ -9,8 +9,8 @@ A fully automated AI teaching business where an AI avatar (HeyGen LiveAvatar) co
 | Lead Capture | ManyChat Pro | $29/mo |
 | Booking | Cal.com (Free) | $0/mo |
 | Payments | Stripe | ~$0.88/booking |
-| Video Calls | Zoom (Free) | $0/mo |
-| AI Avatar | HeyGen Pro + LiveAvatar | $198/mo |
+| AI Avatar | HeyGen/LiveAvatar | $198/mo |
+| Session Page | Next.js + Supabase | ~$0/mo |
 | Calendar | Google Calendar | $0 |
 
 **Total fixed monthly cost: ~$227/mo. Break-even: ~17-20 bookings/month.**
@@ -18,51 +18,70 @@ A fully automated AI teaching business where an AI avatar (HeyGen LiveAvatar) co
 ## Project Structure
 ```
 /
-├── CLAUDE.md                  # This file
-├── knowledge-base/            # Content for HeyGen avatar training
-│   ├── session-1-claude-basics.md
-│   ├── session-2-website-build.md
-│   ├── session-3-ai-for-business.md
-│   └── objections-and-faqs.md
-├── content/                   # Facebook post templates and variations
-│   └── facebook-posts.md
-├── setup/                     # Step-by-step setup notes per platform
-│   ├── stripe-setup.md
-│   ├── calcom-setup.md
-│   ├── heygen-setup.md
-│   └── manychat-setup.md
-└── tracking/                  # Business metrics and session logs
-    └── bookings-log.md
+├── CLAUDE.md
+├── app/
+│   ├── dashboard/             # Owner dashboard (sessions, revenue, KB)
+│   ├── session/[token]/       # Customer-facing session page (avatar + display panel)
+│   └── api/
+│       ├── session/start/     # Create LiveAvatar session token (SDK)
+│       ├── session/llm/       # Custom LLM proxy (Claude + KB + Realtime)
+│       └── session/screenshot/# Screen share upload endpoint
+├── components/session/        # AvatarPanel, DisplayPanel, ScreenShareButton
+├── lib/
+│   ├── liveavatar.ts          # LiveAvatar API client (POST /v1/sessions/token)
+│   ├── guides.ts              # Guide loader + trigger phrase matcher
+│   └── types.ts               # Shared TypeScript types
+├── guides/                    # Scripted step-by-step guides (JSON)
+├── worker/                    # Background jobs (Cal.com webhook, sync)
+├── supabase/migrations/       # DB schema
+└── knowledge-base/            # Avatar training content (Q&A format)
 ```
 
 ## Build & Run
-This is a no-code business project. No build steps. Each tool is configured via its web interface.
+```bash
+npm run dev        # Start Next.js dev server
+npm test           # Run test suite
+```
+
+All secrets in `.env.local` — see `.env.example` for required vars.
+
+## Key Architecture Decisions
+- **LiveAvatar Web SDK**: Uses `@heygen/liveavatar-web-sdk` with `/v1/sessions/token`.
+  The SDK renders the avatar via a `<video>` element (no iframe).
+  `/v2/embeddings` was tried but emits no postMessage events.
+  `/v1/sessions/token` iframe URLs are blocked by X-Frame-Options.
+  The SDK solves both: native rendering + custom LLM + transcription events.
+- **Custom LLM proxy**: `/api/session/llm` intercepts LiveAvatar's AI calls.
+  Enriches with KB content, calls Claude, broadcasts display updates via Supabase Realtime.
+  Returns OpenAI-compatible format to LiveAvatar.
+- **Display panel**: Subscribes to Supabase Realtime channel `session:display:{sessionId}`.
+  Receives display payloads broadcast by the LLM proxy on each conversation turn.
+- **Session token flow**: `/api/session/start` calls LiveAvatar `/v1/sessions/token`,
+  returns the `session_token` to the client. Client passes it to the SDK.
+
+## Current Status — Plan 4 (LiveAvatar Session)
+Branch: `feature/plan-3-dashboard-ui`
+
+### Working
+- [x] Session page renders at `/session/[token]`
+- [x] LiveAvatar avatar renders via Web SDK (`<video>` element, not iframe)
+- [x] Custom LLM proxy wired (LiveAvatar calls `/api/session/llm`)
+- [x] Two-way voice conversation with avatar
+- [x] Screen share (getDisplayMedia + 3s screenshot loop)
+- [x] Display panel UI (cards: concept/command/steps/empty state)
+- [x] Supabase Realtime subscription wired in display panel
+- [x] LLM proxy built (Claude + KB context + Realtime broadcast)
+- [x] Session token generated on Cal.com booking + email sent
+- [x] Dashboard (overview, sessions, KB, call review)
+- [x] Speech state indicators (avatar speaking / listening)
+
+### Pending
+- [ ] Test full end-to-end flow with LiveAvatar credits (SDK avatar + custom LLM + display panel)
+- [ ] Verify custom LLM proxy receives calls from LiveAvatar during SDK sessions
+- [ ] Worker email integration (Resend) for session links
 
 ## Conventions
-- Knowledge base files are written as Q&A pairs (avatar performs best this way)
+- Knowledge base files are written as Q&A pairs
 - Facebook posts always end with a single keyword trigger (LEARN, START, BUILD, AI, READY)
 - Session pricing: $20 standard, $30-50 advanced
-- Update knowledge base weekly after reviewing real session interactions
-
-## Setup Checklist
-### Phase 1: Foundation (Day 1-2)
-- [ ] Create Stripe account + complete identity verification
-- [ ] Create Cal.com account, connect Stripe, create $20 event type with Zoom link
-- [ ] Create HeyGen account, record 2+ minutes on camera for avatar cloning
-- [ ] Upload knowledge base to HeyGen (start with Session 1 only)
-- [ ] Test LiveAvatar with knowledge base — run mock sessions
-
-### Phase 2: Automation (Day 3-4)
-- [ ] Create ManyChat account, connect to Facebook Page
-- [ ] Build comment-to-DM flow (keyword triggers: LEARN, START, BUILD)
-- [ ] Configure public reply + private DM with Cal.com booking link
-- [ ] End-to-end test: comment → DM → booking → payment → Zoom link
-
-### Phase 3: Content & Launch (Day 5-7)
-- [ ] Write/adapt 5-10 Facebook posts (see content/facebook-posts.md)
-- [ ] Finalize Session 1 knowledge base content
-- [ ] Soft launch in 3-5 smaller Facebook AI groups
-- [ ] Monitor first sessions, refine avatar knowledge base
-
-## Current Status
-Project initialized — working through Phase 1 setup.
+- Supabase Realtime broadcast topic pattern: `session:display:{sessionId}` (NOT `realtime:...`)

@@ -1,8 +1,18 @@
-export default function KnowledgeBasePage() {
+import { getKbEntries, getSyncStats } from '@/lib/data/knowledge-base'
+import { KnowledgeBaseEditor } from '@/components/knowledge-base-editor'
+
+export default async function KnowledgeBasePage() {
+  const [entries, syncStats] = await Promise.all([getKbEntries(), getSyncStats()])
+
   return (
     <div>
-      <h1 className="text-2xl font-bold mb-6">Knowledge Base</h1>
-      <p className="text-slate-400">Q&A editor and HeyGen sync coming in Plan 3.</p>
+      <h1 className="mb-6 text-2xl font-bold">Knowledge Base</h1>
+      <KnowledgeBaseEditor
+        initialEntries={entries}
+        syncedCount={syncStats.synced}
+        pendingCount={syncStats.pending}
+        totalCount={syncStats.total}
+      />
     </div>
   )
 }

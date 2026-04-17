@@ -40,3 +40,10 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Superpowers plugin artifacts
+.superpowers/
+.worktrees/
+
+# Local files
+ai_consultation_blueprint.pdf
