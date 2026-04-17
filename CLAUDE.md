@@ -23,12 +23,12 @@ A fully automated AI teaching business where an AI avatar (LiveAvatar/HeyGen) co
 │   ├── dashboard/             # Owner dashboard (sessions, revenue, KB)
 │   ├── session/[token]/       # Customer-facing session page (avatar + display panel)
 │   └── api/
-│       ├── session/start/     # Lazily create LiveAvatar embed URL
+│       ├── session/start/     # Create LiveAvatar session token (SDK)
 │       ├── session/llm/       # Custom LLM proxy (Claude + KB + Realtime)
 │       └── session/screenshot/# Screen share upload endpoint
 ├── components/session/        # AvatarPanel, DisplayPanel, ScreenShareButton
 ├── lib/
-│   ├── liveavatar.ts          # LiveAvatar API client (POST /v2/embeddings)
+│   ├── liveavatar.ts          # LiveAvatar API client (POST /v1/sessions/token)
 │   ├── guides.ts              # Guide loader + trigger phrase matcher
 │   └── types.ts               # Shared TypeScript types
 ├── guides/                    # Scripted step-by-step guides (JSON)
@@ -46,22 +46,26 @@ npm test           # Run test suite
 All secrets in `.env.local` — see `.env.example` for required vars.
 
 ## Key Architecture Decisions
-- **LiveAvatar embed**: Uses `POST /v2/embeddings` (not `/v1/sessions/token`).
-  Returns an `embed.liveavatar.com` URL that works in iframes.
-  `/v1/sessions/token` returns `app.heygen.com` URL blocked by X-Frame-Options.
-- **Embed URL TTL**: `/v2/embeddings` URLs expire quickly — always call fresh on
-  page load, never cache them in the DB.
+- **LiveAvatar Web SDK**: Uses `@heygen/liveavatar-web-sdk` with `/v1/sessions/token`.
+  The SDK renders the avatar via a `<video>` element (no iframe).
+  `/v2/embeddings` was tried but emits no postMessage events.
+  `/v1/sessions/token` iframe URLs are blocked by X-Frame-Options.
+  The SDK solves both: native rendering + custom LLM + transcription events.
+- **Custom LLM proxy**: `/api/session/llm` intercepts LiveAvatar's AI calls.
+  Enriches with KB content, calls Claude, broadcasts display updates via Supabase Realtime.
+  Returns OpenAI-compatible format to LiveAvatar.
 - **Display panel**: Subscribes to Supabase Realtime channel `session:display:{sessionId}`.
-  Currently empty because the custom LLM proxy is not yet wired to the `/v2/embeddings` flow.
-- **LLM proxy** (`/api/session/llm`): Built and working in OpenAI-compatible format.
-  Used by `/v1/sessions/token` flow. Needs reconnection to `/v2/embeddings` approach.
+  Receives display payloads broadcast by the LLM proxy on each conversation turn.
+- **Session token flow**: `/api/session/start` calls LiveAvatar `/v1/sessions/token`,
+  returns the `session_token` to the client. Client passes it to the SDK.
 
 ## Current Status — Plan 4 (LiveAvatar Session)
 Branch: `feature/plan-3-dashboard-ui`
 
 ### Working
 - [x] Session page renders at `/session/[token]`
-- [x] LiveAvatar avatar loads in iframe (embed.liveavatar.com)
+- [x] LiveAvatar avatar renders via Web SDK (`<video>` element, not iframe)
+- [x] Custom LLM proxy wired (LiveAvatar calls `/api/session/llm`)
 - [x] Two-way voice conversation with avatar
 - [x] Screen share (getDisplayMedia + 3s screenshot loop)
 - [x] Display panel UI (cards: concept/command/steps/empty state)
@@ -69,15 +73,12 @@ Branch: `feature/plan-3-dashboard-ui`
 - [x] LLM proxy built (Claude + KB context + Realtime broadcast)
 - [x] Session token generated on Cal.com booking + email sent
 - [x] Dashboard (overview, sessions, KB, call review)
+- [x] Speech state indicators (avatar speaking / listening)
 
 ### Pending
-- [ ] **Display panel wiring**: connect the display panel to real-time conversation.
-  Approach being explored: `postMessage` listener on session page to intercept
-  LiveAvatar iframe events → call a simplified display endpoint → Supabase Realtime.
-  Status: listener added to `app/session/[token]/page.tsx`, needs credits to test.
-- [ ] Verify what postMessage events LiveAvatar emits (open console during a conversation,
-  look for `[liveavatar postMessage]` lines)
-- [ ] Once events confirmed: build `/api/session/display` endpoint to handle them
+- [ ] Test full end-to-end flow with LiveAvatar credits (SDK avatar + custom LLM + display panel)
+- [ ] Verify custom LLM proxy receives calls from LiveAvatar during SDK sessions
+- [ ] Worker email integration (Resend) for session links
 
 ## Conventions
 - Knowledge base files are written as Q&A pairs
