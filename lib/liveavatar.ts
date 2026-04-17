@@ -7,13 +7,13 @@ export interface LiveAvatarTokenResult {
 
 export async function createLiveAvatarSession(
   sessionId: string,
-  appBaseUrl: string
+  _appBaseUrl: string
 ): Promise<LiveAvatarTokenResult> {
   const apiKey = process.env.LIVEAVATAR_API_KEY
   const avatarId = process.env.LIVEAVATAR_AVATAR_ID
+  const contextId = process.env.LIVEAVATAR_CONTEXT_ID
   if (!apiKey || !avatarId) throw new Error('Missing LIVEAVATAR_API_KEY or LIVEAVATAR_AVATAR_ID')
-
-  const llmProxyUrl = `${appBaseUrl}/api/session/llm?session_id=${sessionId}`
+  if (!contextId) throw new Error('Missing LIVEAVATAR_CONTEXT_ID')
 
   const response = await fetch(`${LIVEAVATAR_API_BASE}/v1/sessions/token`, {
     method: 'POST',
@@ -25,14 +25,8 @@ export async function createLiveAvatarSession(
       avatar_id: avatarId,
       mode: 'FULL',
       avatar_persona: {
-        persona: 'You are a friendly, encouraging AI consultation coach specializing in Claude and AI tools. Be warm, concise, and conversational.',
-        instructions: 'You are conducting a 30-minute paid AI consultation. Keep responses to 1-3 sentences. Start by asking what the customer most wants to learn today.',
-      },
-      ...(process.env.LIVEAVATAR_CONTEXT_ID ? { context_id: process.env.LIVEAVATAR_CONTEXT_ID } : {}),
-      llm: {
-        type: 'custom',
-        url: llmProxyUrl,
-        secret: process.env.LIVEAVATAR_PROXY_SECRET,
+        context_id: contextId,
+        language: 'en',
       },
     }),
   })
@@ -42,14 +36,20 @@ export async function createLiveAvatarSession(
     throw new Error(`LiveAvatar API error ${response.status}: ${body}`)
   }
 
-  const data = await response.json() as {
-    code: number
-    data: { session_id: string; session_token: string }
-    message: string
+  const data = await response.json()
+  console.log('[liveavatar] /v1/sessions/token response:', JSON.stringify(data))
+
+  // API returns { token, session_id } at top level
+  // OR { code, data: { session_id, session_token } } — handle both
+  const token = data.token ?? data.data?.session_token
+  const laSessionId = data.session_id ?? data.data?.session_id
+
+  if (!token || !laSessionId) {
+    throw new Error(`LiveAvatar: unexpected response shape: ${JSON.stringify(data)}`)
   }
 
   return {
-    session_id: data.data.session_id,
-    session_token: data.data.session_token,
+    session_id: laSessionId,
+    session_token: token,
   }
 }
