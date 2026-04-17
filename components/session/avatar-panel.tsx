@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useRef, useState, useCallback } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
   LiveAvatarSession,
   SessionState,
@@ -11,17 +11,23 @@ interface AvatarPanelProps {
   sessionToken: string
 }
 
+// Track which tokens have been used across Strict Mode remounts
+const usedTokens = new Set<string>()
+
 export function AvatarPanel({ sessionToken }: AvatarPanelProps) {
   const videoRef = useRef<HTMLVideoElement>(null)
   const sessionRef = useRef<LiveAvatarSession | null>(null)
-  const [state, setState] = useState<string>('connecting')
+  const [state, setState] = useState<string>('idle')
   const [isAvatarTalking, setIsAvatarTalking] = useState(false)
   const [isUserTalking, setIsUserTalking] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [started, setStarted] = useState(false)
 
-  const startSession = useCallback(async () => {
-    if (sessionRef.current) return
+  async function startSession() {
+    if (sessionRef.current || usedTokens.has(sessionToken)) return
+    usedTokens.add(sessionToken)
 
+    setState('connecting')
     const session = new LiveAvatarSession(sessionToken, {
       voiceChat: { defaultMuted: false },
     })
@@ -50,23 +56,43 @@ export function AvatarPanel({ sessionToken }: AvatarPanelProps) {
     } catch (err) {
       console.error('[avatar] Failed to start session:', err)
       setError('Failed to connect to avatar')
+      usedTokens.delete(sessionToken)
     }
-  }, [sessionToken])
+  }
 
+  // Cleanup on unmount (but don't clear usedTokens — prevents Strict Mode double-start)
   useEffect(() => {
-    startSession()
     return () => {
       if (sessionRef.current) {
         sessionRef.current.stop().catch(console.error)
         sessionRef.current = null
       }
     }
-  }, [startSession])
+  }, [])
+
+  // Start on button click (satisfies Chrome autoplay policy — user gesture required)
+  function handleStart() {
+    setStarted(true)
+    startSession()
+  }
 
   if (error) {
     return (
       <div className="flex h-full items-center justify-center rounded-xl border border-slate-700 bg-slate-900">
         <p className="text-red-400 text-sm">{error}</p>
+      </div>
+    )
+  }
+
+  if (!started) {
+    return (
+      <div className="flex h-full items-center justify-center rounded-xl border border-slate-700 bg-slate-900">
+        <button
+          onClick={handleStart}
+          className="bg-indigo-600 hover:bg-indigo-500 text-white font-semibold px-6 py-3 rounded-xl transition-colors"
+        >
+          Start Consultation
+        </button>
       </div>
     )
   }
