@@ -11,12 +11,10 @@ interface AvatarPanelProps {
   sessionToken: string
 }
 
-// Track which tokens have been used across Strict Mode remounts
-const usedTokens = new Set<string>()
-
 export function AvatarPanel({ sessionToken }: AvatarPanelProps) {
   const videoRef = useRef<HTMLVideoElement>(null)
   const sessionRef = useRef<LiveAvatarSession | null>(null)
+  const startedRef = useRef(false)
   const [state, setState] = useState<string>('idle')
   const [isAvatarTalking, setIsAvatarTalking] = useState(false)
   const [isUserTalking, setIsUserTalking] = useState(false)
@@ -24,8 +22,9 @@ export function AvatarPanel({ sessionToken }: AvatarPanelProps) {
   const [started, setStarted] = useState(false)
 
   async function startSession() {
-    if (sessionRef.current || usedTokens.has(sessionToken)) return
-    usedTokens.add(sessionToken)
+    // Ref guard survives Strict Mode remounts (unlike module-level Set which HMR clears)
+    if (startedRef.current) return
+    startedRef.current = true
 
     setState('connecting')
     const session = new LiveAvatarSession(sessionToken, {
@@ -56,11 +55,19 @@ export function AvatarPanel({ sessionToken }: AvatarPanelProps) {
     } catch (err) {
       console.error('[avatar] Failed to start session:', err)
       setError('Failed to connect to avatar')
-      usedTokens.delete(sessionToken)
+      startedRef.current = false
     }
   }
 
-  // Cleanup on unmount (but don't clear usedTokens — prevents Strict Mode double-start)
+  function endSession() {
+    if (sessionRef.current) {
+      sessionRef.current.stop().catch(console.error)
+      sessionRef.current = null
+    }
+    setError('Session ended')
+  }
+
+  // Cleanup on unmount — but don't reset startedRef (prevents Strict Mode double-start)
   useEffect(() => {
     return () => {
       if (sessionRef.current) {
@@ -70,7 +77,6 @@ export function AvatarPanel({ sessionToken }: AvatarPanelProps) {
     }
   }, [])
 
-  // Start on button click (satisfies Chrome autoplay policy — user gesture required)
   function handleStart() {
     setStarted(true)
     startSession()
@@ -113,18 +119,26 @@ export function AvatarPanel({ sessionToken }: AvatarPanelProps) {
         </div>
       )}
 
-      {/* Speech indicators */}
-      <div className="absolute bottom-3 left-3 flex gap-2">
-        {isAvatarTalking && (
-          <span className="bg-indigo-600/80 text-white text-xs px-2 py-1 rounded-full animate-pulse">
-            Avatar speaking
-          </span>
-        )}
-        {isUserTalking && (
-          <span className="bg-emerald-600/80 text-white text-xs px-2 py-1 rounded-full animate-pulse">
-            Listening...
-          </span>
-        )}
+      {/* Speech indicators + end button */}
+      <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between">
+        <div className="flex gap-2">
+          {isAvatarTalking && (
+            <span className="bg-indigo-600/80 text-white text-xs px-2 py-1 rounded-full animate-pulse">
+              Avatar speaking
+            </span>
+          )}
+          {isUserTalking && (
+            <span className="bg-emerald-600/80 text-white text-xs px-2 py-1 rounded-full animate-pulse">
+              Listening...
+            </span>
+          )}
+        </div>
+        <button
+          onClick={endSession}
+          className="bg-red-600/80 hover:bg-red-500 text-white text-xs px-3 py-1.5 rounded-lg transition-colors"
+        >
+          End session
+        </button>
       </div>
     </div>
   )

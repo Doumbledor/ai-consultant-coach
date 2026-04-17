@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { use } from 'react'
 import { AvatarPanel } from '@/components/session/avatar-panel'
 import { DisplayPanel } from '@/components/session/display-panel'
@@ -14,8 +14,13 @@ export default function SessionPage({ params }: Props) {
   const [sessionToken, setSessionToken] = useState<string | null>(null)
   const [sessionId, setSessionId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const fetchedRef = useRef(false)
 
   useEffect(() => {
+    // Prevent Strict Mode double-fetch — each fetch creates a LiveAvatar session token
+    if (fetchedRef.current) return
+    fetchedRef.current = true
+
     fetch('/api/session/start', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
