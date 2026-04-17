@@ -1,0 +1,17 @@
+{
+  "title": "Install Claude Code",
+  "trigger_phrases": [
+    "install claude code",
+    "install claude",
+    "how do i install",
+    "get started with claude code",
+    "set up claude code"
+  ],
+  "steps": [
+    "Open your terminal (on Mac: press Cmd+Space, type Terminal, press Enter)",
+    "Run: npm install -g @anthropic-ai/claude-code",
+    "Once installed, type: claude — press Enter to launch it",
+    "You'll be prompted to log in with your Anthropic account",
+    "That's it — you're ready to use Claude Code!"
+  ]
+}
