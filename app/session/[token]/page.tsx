@@ -57,24 +57,24 @@ export default function SessionPage({ params }: Props) {
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 flex flex-col">
+    <div className="h-screen bg-slate-950 flex flex-col overflow-hidden">
       {/* Header */}
-      <div className="flex items-center justify-between px-6 py-3 border-b border-slate-800">
+      <div className="flex items-center justify-between px-6 py-3 border-b border-slate-800 flex-shrink-0">
         <span className="text-sm font-semibold text-indigo-400 uppercase tracking-wider">
           AI Consultation
         </span>
         <ScreenShareButton sessionId={sessionId} />
       </div>
 
-      {/* Main split layout */}
-      <div className="flex flex-1 gap-4 p-4 overflow-hidden">
-        {/* Left: Avatar (SDK video) */}
-        <div className="flex-1" style={{ minHeight: 'calc(100vh - 80px)' }}>
+      {/* Main split layout — fixed to viewport, panels scroll independently */}
+      <div className="flex flex-1 gap-4 p-4 overflow-hidden min-h-0">
+        {/* Left: Avatar (SDK video) — fixed height, never grows */}
+        <div className="flex-1 min-h-0">
           <AvatarPanel sessionToken={sessionToken} sessionId={sessionId} />
         </div>
 
-        {/* Right: Display panel */}
-        <div className="flex-1 flex flex-col" style={{ minHeight: 'calc(100vh - 80px)' }}>
+        {/* Right: Display panel — scrolls independently */}
+        <div className="flex-1 min-h-0 overflow-y-auto">
           <DisplayPanel sessionId={sessionId} />
         </div>
       </div>

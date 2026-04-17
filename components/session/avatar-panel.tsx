@@ -121,7 +121,7 @@ export function AvatarPanel({ sessionToken, sessionId }: AvatarPanelProps) {
         ref={videoRef}
         autoPlay
         playsInline
-        className="w-full h-full object-cover"
+        className="w-full h-full object-contain bg-slate-950"
       />
 
       {/* Connection state overlay */}

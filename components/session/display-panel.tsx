@@ -152,7 +152,7 @@ export function DisplayPanel({ sessionId }: DisplayPanelProps) {
   if (cards.length === 0) return <EmptyState />
 
   return (
-    <div className="flex flex-col gap-3 overflow-y-auto h-full pr-1">
+    <div className="flex flex-col gap-3">
       {cards.map((card, i) => (
         <DisplayCard key={i} display={card} />
       ))}
