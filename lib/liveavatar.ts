@@ -1,23 +1,21 @@
 const LIVEAVATAR_API_BASE = 'https://api.liveavatar.com'
 
-export interface LiveAvatarSession {
+export interface LiveAvatarTokenResult {
   session_id: string
   session_token: string
-  embed_url: string
 }
 
 export async function createLiveAvatarSession(
   sessionId: string,
-  _appBaseUrl: string
-): Promise<LiveAvatarSession> {
+  appBaseUrl: string
+): Promise<LiveAvatarTokenResult> {
   const apiKey = process.env.LIVEAVATAR_API_KEY
   const avatarId = process.env.LIVEAVATAR_AVATAR_ID
-  const contextId = process.env.LIVEAVATAR_CONTEXT_ID
   if (!apiKey || !avatarId) throw new Error('Missing LIVEAVATAR_API_KEY or LIVEAVATAR_AVATAR_ID')
-  if (!contextId) throw new Error('Missing LIVEAVATAR_CONTEXT_ID')
 
-  // Use /v2/embeddings which returns an embed.liveavatar.com URL safe for iframing
-  const response = await fetch(`${LIVEAVATAR_API_BASE}/v2/embeddings`, {
+  const llmProxyUrl = `${appBaseUrl}/api/session/llm?session_id=${sessionId}`
+
+  const response = await fetch(`${LIVEAVATAR_API_BASE}/v1/sessions/token`, {
     method: 'POST',
     headers: {
       'X-Api-Key': apiKey,
@@ -25,8 +23,17 @@ export async function createLiveAvatarSession(
     },
     body: JSON.stringify({
       avatar_id: avatarId,
-      context_id: contextId,
-      default_language: 'en',
+      mode: 'FULL',
+      avatar_persona: {
+        persona: 'You are a friendly, encouraging AI consultation coach specializing in Claude and AI tools. Be warm, concise, and conversational.',
+        instructions: 'You are conducting a 30-minute paid AI consultation. Keep responses to 1-3 sentences. Start by asking what the customer most wants to learn today.',
+      },
+      ...(process.env.LIVEAVATAR_CONTEXT_ID ? { context_id: process.env.LIVEAVATAR_CONTEXT_ID } : {}),
+      llm: {
+        type: 'custom',
+        url: llmProxyUrl,
+        secret: process.env.LIVEAVATAR_PROXY_SECRET,
+      },
     }),
   })
 
@@ -37,15 +44,12 @@ export async function createLiveAvatarSession(
 
   const data = await response.json() as {
     code: number
-    data: { url: string; script: string }
+    data: { session_id: string; session_token: string }
     message: string
   }
 
-  console.log('[liveavatar] embed response:', JSON.stringify(data))
-
   return {
-    session_id: sessionId,
-    session_token: '',
-    embed_url: data.data.url,
+    session_id: data.data.session_id,
+    session_token: data.data.session_token,
   }
 }
