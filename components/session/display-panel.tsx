@@ -7,9 +7,30 @@ interface DisplayPanelProps {
   sessionId: string
 }
 
+function CopyButton({ text }: { text: string }) {
+  const [copied, setCopied] = useState(false)
+
+  function handleCopy() {
+    navigator.clipboard.writeText(text).then(() => {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    })
+  }
+
+  return (
+    <button
+      onClick={handleCopy}
+      className="text-slate-500 hover:text-slate-300 text-xs transition-colors"
+      title="Copy to clipboard"
+    >
+      {copied ? 'Copied!' : 'Copy'}
+    </button>
+  )
+}
+
 function ConceptCard({ content }: { content: { title: string; body: string; tags: string[] } }) {
   return (
-    <div className="rounded-xl border border-indigo-800 bg-slate-900 overflow-hidden h-full">
+    <div className="rounded-xl border border-indigo-800 bg-slate-900 overflow-hidden">
       <div className="bg-slate-800 px-4 py-2 border-b border-slate-700 flex items-center gap-2">
         <div className="w-2 h-2 rounded-full bg-indigo-500" />
         <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Concept</span>
@@ -32,18 +53,26 @@ function ConceptCard({ content }: { content: { title: string; body: string; tags
 }
 
 function CommandCard({ content }: { content: { title: string; commands: string[]; note: string } }) {
+  const allCommands = content.commands.join('\n')
+
   return (
-    <div className="rounded-xl border border-emerald-800 bg-slate-900 overflow-hidden h-full">
-      <div className="bg-slate-800 px-4 py-2 border-b border-slate-700 flex items-center gap-2">
-        <div className="w-2 h-2 rounded-full bg-emerald-500" />
-        <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Command</span>
+    <div className="rounded-xl border border-emerald-800 bg-slate-900 overflow-hidden">
+      <div className="bg-slate-800 px-4 py-2 border-b border-slate-700 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <div className="w-2 h-2 rounded-full bg-emerald-500" />
+          <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Command</span>
+        </div>
+        <CopyButton text={allCommands} />
       </div>
       <div className="p-5">
         <h3 className="text-white font-bold text-base mb-3">{content.title}</h3>
         <div className="bg-slate-950 rounded-lg p-3 font-mono text-sm space-y-1">
           {content.commands.map((cmd, i) => (
-            <div key={i} className="text-emerald-400">
-              <span className="text-slate-600">$ </span>{cmd}
+            <div key={i} className="flex items-center justify-between group">
+              <span className="text-emerald-400">
+                <span className="text-slate-600">$ </span>{cmd}
+              </span>
+              <CopyButton text={cmd} />
             </div>
           ))}
         </div>
@@ -56,11 +85,16 @@ function CommandCard({ content }: { content: { title: string; commands: string[]
 }
 
 function StepsCard({ content }: { content: { title: string; steps: string[] } }) {
+  const allSteps = content.steps.map((s, i) => `${i + 1}. ${s}`).join('\n')
+
   return (
-    <div className="rounded-xl border border-amber-800 bg-slate-900 overflow-hidden h-full">
-      <div className="bg-slate-800 px-4 py-2 border-b border-slate-700 flex items-center gap-2">
-        <div className="w-2 h-2 rounded-full bg-amber-500" />
-        <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Step-by-step</span>
+    <div className="rounded-xl border border-amber-800 bg-slate-900 overflow-hidden">
+      <div className="bg-slate-800 px-4 py-2 border-b border-slate-700 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <div className="w-2 h-2 rounded-full bg-amber-500" />
+          <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Step-by-step</span>
+        </div>
+        <CopyButton text={allSteps} />
       </div>
       <div className="p-5">
         <h3 className="text-white font-bold text-base mb-4">{content.title}</h3>
@@ -79,6 +113,13 @@ function StepsCard({ content }: { content: { title: string; steps: string[] } })
   )
 }
 
+function DisplayCard({ display }: { display: DisplayContent }) {
+  if (display.type === 'concept') return <ConceptCard content={display.content} />
+  if (display.type === 'command') return <CommandCard content={display.content} />
+  if (display.type === 'steps') return <StepsCard content={display.content} />
+  return null
+}
+
 function EmptyState() {
   return (
     <div className="flex h-full items-center justify-center rounded-xl border border-slate-700 bg-slate-900">
@@ -91,7 +132,7 @@ function EmptyState() {
 }
 
 export function DisplayPanel({ sessionId }: DisplayPanelProps) {
-  const [display, setDisplay] = useState<DisplayContent | null>(null)
+  const [cards, setCards] = useState<DisplayContent[]>([])
 
   useEffect(() => {
     const supabase = createClient()
@@ -99,18 +140,22 @@ export function DisplayPanel({ sessionId }: DisplayPanelProps) {
 
     channel
       .on('broadcast', { event: 'display' }, ({ payload }: { payload: DisplayContent }) => {
-        setDisplay(payload)
+        if (payload.type !== 'none') {
+          setCards((prev) => [...prev, payload])
+        }
       })
       .subscribe()
 
     return () => { supabase.removeChannel(channel) }
   }, [sessionId])
 
-  if (!display || display.type === 'none') return <EmptyState />
+  if (cards.length === 0) return <EmptyState />
 
-  if (display.type === 'concept') return <ConceptCard content={display.content} />
-  if (display.type === 'command') return <CommandCard content={display.content} />
-  if (display.type === 'steps') return <StepsCard content={display.content} />
-
-  return <EmptyState />
+  return (
+    <div className="flex flex-col gap-3 overflow-y-auto h-full pr-1">
+      {cards.map((card, i) => (
+        <DisplayCard key={i} display={card} />
+      ))}
+    </div>
+  )
 }
