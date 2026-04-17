@@ -9,9 +9,10 @@ import {
 
 interface AvatarPanelProps {
   sessionToken: string
+  sessionId: string
 }
 
-export function AvatarPanel({ sessionToken }: AvatarPanelProps) {
+export function AvatarPanel({ sessionToken, sessionId }: AvatarPanelProps) {
   const videoRef = useRef<HTMLVideoElement>(null)
   const sessionRef = useRef<LiveAvatarSession | null>(null)
   const startedRef = useRef(false)
@@ -49,6 +50,17 @@ export function AvatarPanel({ sessionToken }: AvatarPanelProps) {
     session.on(AgentEventsEnum.AVATAR_SPEAK_ENDED, () => setIsAvatarTalking(false))
     session.on(AgentEventsEnum.USER_SPEAK_STARTED, () => setIsUserTalking(true))
     session.on(AgentEventsEnum.USER_SPEAK_ENDED, () => setIsUserTalking(false))
+
+    // When the avatar finishes a response, send it to the display endpoint
+    // so Claude can generate visual content for the display panel
+    session.on(AgentEventsEnum.AVATAR_TRANSCRIPTION, (event: { text: string }) => {
+      console.log('[avatar] Transcription:', event.text)
+      fetch('/api/session/display', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ session_id: sessionId, avatar_text: event.text }),
+      }).catch((err) => console.error('[avatar] Display update failed:', err))
+    })
 
     try {
       await session.start()

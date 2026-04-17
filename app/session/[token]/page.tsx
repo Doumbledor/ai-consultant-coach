@@ -70,7 +70,7 @@ export default function SessionPage({ params }: Props) {
       <div className="flex flex-1 gap-4 p-4 overflow-hidden">
         {/* Left: Avatar (SDK video) */}
         <div className="flex-1" style={{ minHeight: 'calc(100vh - 80px)' }}>
-          <AvatarPanel sessionToken={sessionToken} />
+          <AvatarPanel sessionToken={sessionToken} sessionId={sessionId} />
         </div>
 
         {/* Right: Display panel */}
