@@ -13,6 +13,7 @@
   "dependencies": {
     "@anthropic-ai/sdk": "^0.89.0",
     "@base-ui/react": "^1.4.0",
+    "@heygen/liveavatar-web-sdk": "^0.0.13",
     "@supabase/ssr": "^0.10.2",
     "@supabase/supabase-js": "^2.103.0",
     "class-variance-authority": "^0.7.1",
