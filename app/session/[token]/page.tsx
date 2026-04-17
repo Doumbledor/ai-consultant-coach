@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { use } from 'react'
+import { AvatarPanel } from '@/components/session/avatar-panel'
 import { DisplayPanel } from '@/components/session/display-panel'
 import { ScreenShareButton } from '@/components/session/screen-share-button'
 
@@ -10,20 +11,9 @@ interface Props {
 
 export default function SessionPage({ params }: Props) {
   const { token } = use(params)
-  const [embedUrl, setEmbedUrl] = useState<string | null>(null)
+  const [sessionToken, setSessionToken] = useState<string | null>(null)
   const [sessionId, setSessionId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
-
-  useEffect(() => {
-    const handleMessage = (event: MessageEvent) => {
-      // Only log messages from the LiveAvatar embed domain
-      if (event.origin.includes('liveavatar.com') || event.origin.includes('heygen.com')) {
-        console.log('[liveavatar postMessage]', event.origin, JSON.stringify(event.data))
-      }
-    }
-    window.addEventListener('message', handleMessage)
-    return () => window.removeEventListener('message', handleMessage)
-  }, [])
 
   useEffect(() => {
     fetch('/api/session/start', {
@@ -35,8 +25,8 @@ export default function SessionPage({ params }: Props) {
         if (!res.ok) throw new Error('Invalid session link')
         return res.json()
       })
-      .then((data: { embed_url: string; session_id: string }) => {
-        setEmbedUrl(data.embed_url)
+      .then((data: { session_token: string; session_id: string }) => {
+        setSessionToken(data.session_token)
         setSessionId(data.session_id)
       })
       .catch((err: Error) => setError(err.message))
@@ -53,7 +43,7 @@ export default function SessionPage({ params }: Props) {
     )
   }
 
-  if (!embedUrl || !sessionId) {
+  if (!sessionToken || !sessionId) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-950">
         <p className="text-slate-400 text-sm">Starting your session...</p>
@@ -73,14 +63,9 @@ export default function SessionPage({ params }: Props) {
 
       {/* Main split layout */}
       <div className="flex flex-1 gap-4 p-4 overflow-hidden">
-        {/* Left: Avatar embed */}
-        <div className="flex-1 rounded-xl overflow-hidden border border-slate-700 bg-slate-900">
-          <iframe
-            src={embedUrl}
-            allow="microphone; camera"
-            className="w-full h-full"
-            style={{ minHeight: 'calc(100vh - 80px)' }}
-          />
+        {/* Left: Avatar (SDK video) */}
+        <div className="flex-1" style={{ minHeight: 'calc(100vh - 80px)' }}>
+          <AvatarPanel sessionToken={sessionToken} />
         </div>
 
         {/* Right: Display panel */}
